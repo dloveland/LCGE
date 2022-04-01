@@ -4,11 +4,13 @@ import torch.nn as nn
 import scipy.sparse as sp
 import numpy as np
 from pytorch_util import weights_init
-from gcn import GCN
+import sys 
+sys.path.append('/shared-datadrive/shared-training/LCGE')
+from models.gcn import GCN
 import torch.nn.functional as F
 import copy
 from policy_nn import PolicyNN
-import gnns
+import training.gnns as gnns
 import torch.optim as optim
 from utils import progress_bar
 import matplotlib.pyplot as plt
@@ -41,7 +43,7 @@ class gnn_explain():
     def train(self):
         ####given the well-trained model
         ### Load the model 
-        checkpoint = torch.load('./checkpoint/ckpt.pth')
+        checkpoint = torch.load('/shared-datadrive/shared-training/LCGE/xai/checkpoint/original_XGNN_MUTAG_ckpt.pth')
         self.gnnNets.load_state_dict(checkpoint['net'])
         
         for i in range(self.max_iters):

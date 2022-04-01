@@ -3,7 +3,9 @@ import torch.nn as nn
 import scipy.sparse as sp
 import numpy as np
 from pytorch_util import weights_init
-from gcn import GCN
+import sys 
+sys.path.append('/shared-datadrive/shared-training/LCGE')
+from models.gcn import GCN
 import torch.nn.functional as F
 
 def normalize_adj(adj):
@@ -32,7 +34,6 @@ class PolicyNN(nn.Module):
         self.input_dim  = input_dim
         self.node_type_num =node_type_num 
         self.initial_dim = initial_dim
-  #      self.stop_mlp_hidden = 16
         self.start_mlp_hidden = 16
         self.tail_mlp_hidden = 24
 
