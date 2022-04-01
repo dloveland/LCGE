@@ -38,7 +38,13 @@ class gnn_explain():
         self.dict = {0:'C', 1:'N', 2:'O', 3:'F', 4:'I', 5:'Cl', 6:'Br'}
         self.color= {0:'g', 1:'r', 2:'b', 3:'c', 4:'m', 5:'w', 6:'y'}
         self.max_poss_degree = {0: 4, 1: 5, 2: 2, 3: 1, 4: 7, 5:7, 6: 5}
-        
+
+        self.graph_option = 'load'  #option: reset or load from an existing graph, existing graph need to be inputted
+        self.load_graph = nx.Graph()
+        self.load_graph.add_node(0, label= 0)
+        self.load_graph.add_node(1, label= 0)
+        self.load_graph.add_node(2, label= 0)
+        self.load_graph.add_edges_from([(0, 1), (0, 2)])
 
     def train(self):
         ####given the well-trained model
@@ -47,7 +53,10 @@ class gnn_explain():
         self.gnnNets.load_state_dict(checkpoint['net'])
         
         for i in range(self.max_iters):
-            self.graph_reset()
+            if self.graph_option == 'reset':
+                self.graph_reset()
+            else: 
+                self.graph = self.load_graph
             for j in range(self.max_step):
                 self.optimizer.zero_grad()
                 reward_pred = 0
@@ -58,11 +67,9 @@ class gnn_explain():
                 self.graph_old = copy.deepcopy(self.graph)
                 ###get the embeddings
                 X, A = self.read_from_graph(self.graph)
-           #     print('Current have', n, 'node')
                 X = torch.from_numpy(X)
                 A = torch.from_numpy(A)
                 ### Feed to the policy nets for actions
-             #   forward(self, node_feat, n2n_sp, node_num):
                 start_action, start_logits_ori, tail_action, tail_logits_ori  = self.policyNets(X.float(), A.float(), n+self.node_type)
 
                 #flag is used to track whether adding operation is success/valid.
