@@ -17,8 +17,9 @@ import matplotlib.pyplot as plt
 
 
 class gnn_explain():
-    def __init__(self, max_node, max_step, target_class, max_iters): 
+    def __init__(self, args, max_node, max_step, target_class, max_iters): 
         print('Start training pipeline')
+        self.args = args
         self.graph= nx.Graph()
    #$     self.mol = Chem.RWMol()  ### keep a mol obj, to check if the graph is valid 
         self.max_node = max_node
@@ -39,7 +40,7 @@ class gnn_explain():
         self.color= {0:'g', 1:'r', 2:'b', 3:'c', 4:'m', 5:'w', 6:'y'}
         self.max_poss_degree = {0: 4, 1: 5, 2: 2, 3: 1, 4: 7, 5:7, 6: 5}
 
-        self.graph_option = 'load'  #option: reset or load from an existing graph, existing graph need to be inputted
+        self.graph_option = self.args.init_graph  #option: reset or load from an existing graph, existing graph need to be inputted
         self.load_graph = nx.Graph()
         self.load_graph.add_node(0, label= 0)
         self.load_graph.add_node(1, label= 0)
@@ -49,7 +50,7 @@ class gnn_explain():
     def train(self):
         ####given the well-trained model
         ### Load the model 
-        checkpoint = torch.load('/shared-datadrive/shared-training/LCGE/xai/checkpoint/original_XGNN_MUTAG_ckpt.pth')
+        checkpoint = torch.load(self.args.checkpoint)
         self.gnnNets.load_state_dict(checkpoint['net'])
         
         for i in range(self.max_iters):
