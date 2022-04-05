@@ -22,8 +22,8 @@ class gnn_explain():
         self.args = args
         self.graph= nx.Graph()
         self.max_node = max_node
-        self.max_step = max_step
-        self.max_iters = max_iters
+        self.max_step = 20
+        self.max_iters = 1
         self.num_class = 2
         self.node_type = 7
         self.learning_rate = 0.01
@@ -152,7 +152,9 @@ class gnn_explain():
         for n in attr:
             labels[n]= self.dict[attr[n]]
             color = color+ self.color[attr[n]]
+        f = plt.figure()
         nx.draw(graph,labels=labels, node_color=color)
+        f.savefig("graph.png")
         
         
     def check_validity(self, graph):
