@@ -5,7 +5,9 @@ import numpy as np
 import scipy.sparse as sp
 import numpy as np
 from pytorch_util import weights_init
-from gcn import GCN
+import sys 
+sys.path.append('/shared-datadrive/shared-training/LCGE')
+from models.gcn import GCN
 import torch.nn.functional as F
 import torch.optim as optim
 import networkx as nx

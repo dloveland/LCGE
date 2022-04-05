@@ -3,7 +3,9 @@ import torch.nn as nn
 import scipy.sparse as sp
 import numpy as np
 from pytorch_util import weights_init
-from gcn import GCN
+import sys 
+sys.path.append('/shared-datadrive/shared-training/LCGE')
+from models.gcn import GCN
 import torch.nn.functional as F
 
 def normalize_adj(adj):
@@ -11,10 +13,8 @@ def normalize_adj(adj):
     #print("===Normalizing adjacency matrix symmetrically===")
     adj = adj.numpy()
     N = adj.shape[0]
-  #  adj = adj + np.eye(N)
     D = np.sum(adj, 0)
     D_hat = np.diag(np.power(D,-0.5))
- #   np.diag((D )**(-0.5))
     out = np.dot(D_hat, adj).dot(D_hat)
     out[np.isnan(out)]=0
     out = torch.from_numpy(out)
@@ -32,7 +32,6 @@ class PolicyNN(nn.Module):
         self.input_dim  = input_dim
         self.node_type_num =node_type_num 
         self.initial_dim = initial_dim
-  #      self.stop_mlp_hidden = 16
         self.start_mlp_hidden = 16
         self.tail_mlp_hidden = 24
 
@@ -67,15 +66,10 @@ class PolicyNN(nn.Module):
     def forward(self, node_feat, n2n_sp, node_num):
 
         un_A, A = normalize_adj(n2n_sp)
-      #  A = n2n_sp
-     #   print('adj has shape', A.size())
-     #   print('node feature has shape', node_feat.size())
         cur_out = node_feat
         cur_A = A
 
         cur_out = self.input_mlp(cur_out)
-  #      cur_out = self.input_non_linear(cur_out)
-
 
         for i in range(self.layer_num):
             cur_out = self.gcns[i](cur_A, cur_out)
@@ -89,9 +83,7 @@ class PolicyNN(nn.Module):
         logits_mask = self.sequence_mask(ob_len, cur_A.size()[0])
         
         logits_mask_first = self.sequence_mask(ob_len_first, cur_A.size()[0])
-   #     print('logits_mask_first has shape', logits_mask_first.size())
-        graph_embedding = torch.mean(cur_out, 0) ####  
-      #  print('graph_embedding has shape', graph_embedding.size())
+        graph_embedding = torch.mean(cur_out, 0)
 
 
         ### action--- select the starting node, two layer mlps
@@ -100,7 +92,6 @@ class PolicyNN(nn.Module):
         start_emb = self.start_mlp_non_linear(start_emb)
         start_logits = self.start_mlp2(start_emb)
         start_logits_ori = torch.squeeze(start_logits)
-    #    print('start_logits has shape', start_logits.size())
         start_logits_short = start_logits_ori[0:ob_len_first]
         
         start_probs = torch.nn.functional.softmax(start_logits_short,dim=0)
@@ -143,8 +134,6 @@ class PolicyNN(nn.Module):
         tail_prob_dist = torch.distributions.Categorical(tail_probs)
         try:
             tail_action = tail_prob_dist.sample()
-#            if tail_action >= start_action:
-#                tail_action = tail_action +1
         except:
             import pdb
             pdb.set_trace()
