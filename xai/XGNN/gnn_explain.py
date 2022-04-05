@@ -22,7 +22,7 @@ class gnn_explain():
         self.args = args
         self.graph= nx.Graph()
         self.max_node = max_node
-        self.max_step = max_step
+        self.max_step = 20
         self.max_iters = max_iters
         self.num_class = 2
         self.node_type = 7
@@ -45,6 +45,9 @@ class gnn_explain():
         self.load_graph.add_node(1, label= 0)
         self.load_graph.add_node(2, label= 0)
         self.load_graph.add_edges_from([(0, 1), (0, 2)])
+        # self.graph_draw(self.load_graph)
+        # import pdb 
+        # pdb.set_trace()
 
     def train(self):
         ####given the well-trained model
@@ -56,7 +59,7 @@ class gnn_explain():
             if self.graph_option == 'reset':
                 self.graph_reset()
             else: 
-                self.graph = self.load_graph
+                self.graph = self.load_graph.copy()
             for j in range(self.max_step):
                 self.optimizer.zero_grad()
                 reward_pred = 0
@@ -135,6 +138,8 @@ class gnn_explain():
 
         # typically, they start from a pretrained epoch, train to generate a new graph and evaluate 
         # the generated graph at last
+        import pdb 
+        pdb.set_trace()
         self.graph_draw(self.graph)
         plt.show()
         X_new, A_new = self.read_from_graph_raw(self.graph)
@@ -152,7 +157,9 @@ class gnn_explain():
         for n in attr:
             labels[n]= self.dict[attr[n]]
             color = color+ self.color[attr[n]]
+        f = plt.figure()
         nx.draw(graph,labels=labels, node_color=color)
+        f.savefig("graph.png")
         
         
     def check_validity(self, graph):
