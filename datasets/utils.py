@@ -6,18 +6,25 @@ from platform import node
 
 import numpy as np
 import torch
-from torch_geometric.data import Data, Dataset, download_url
+from torch_geometric.data import Data
 from torch_geometric.datasets import GeometricShapes
 from torch_geometric.loader import DataLoader
 from tqdm import tqdm
+import argparse
+
+
+def preprocessing_for_all():
+    dataset_names = ["colors", "triangles"]
+    dataset_prefixes = ["COLORS-3", "TRIANGLES"]
+    for dataset_name, dataset_prefix in zip(dataset_names, dataset_prefixes):
+        preprocessed_data(dataset_name, dataset_prefix)
 
 
 def preprocessed_data(dataset_name, file_prefix):
     dataset_path = Path("datasets") / dataset_name
+    print(f"Preprocessing dataset {dataset_name}")
 
     if not os.path.exists(str(dataset_path / "preprocessed_data.pkl")):
-        print(f"Preprocessing Dataset {dataset_name}")
-
         # edges mapping dict: {node_src_idx: [node_dst_idx, ...]}
         with open(dataset_path / f"{file_prefix}_A.txt", 'r') as read_A:
             lines = read_A.read().splitlines()
@@ -45,27 +52,49 @@ def preprocessed_data(dataset_name, file_prefix):
             node_idx_lst.append(node_idx_curr + 1)
             graph_indicator[graph_idx_curr] = node_idx_lst
 
-        # with open(dataset_path / "graph_indicator.json", 'w') as write_G_indicator:
+        # with open(dataset_path /
+        # "graph_indicator.json", 'w') as write_G_indicator:
         #     json.dump(graph_indicator, write_G_indicator)
 
-        # node features matrix: n_nodes x 3 (one_hot encoding for R,G,B)
+        # node features
         node_features = []
         with open(dataset_path / f"{file_prefix}_node_attributes.txt", 'r') as \
                 read_node_attributes:
             lines = read_node_attributes.read().splitlines()
         for line in lines:
-            features_vec = line.split(", ")
-            features_vec = [int(feature) for feature in features_vec][1:4]
+            if dataset_name == "colors":
+                # node features matrix: n_nodes x 3 (one_hot encoding for R,G,B)
+                features_vec = line.split(", ")
+                features_vec = [int(feature) for feature in features_vec][1:4]
+            elif dataset_name == "triangles":
+                # node features matrix: n_nodes x 1 (number of triangles)
+                features_vec = [int(line)]
             node_features.append(features_vec)
-
         # node_features = torch.Tensor(node_features)
         # print(node_features.shape)
+
+        # graph labels
+        if dataset_name == "triangles":
+            with open(dataset_path /
+                      f"{file_prefix}_graph_labels.txt", 'r') as \
+                    read_graph_labels:
+                lines = read_graph_labels.read().splitlines()
+            graph_labels = [int(line) for line in lines]
+
+        # formatting as Pytorch Geometric data
+        # list of Data objects
         graph_data_list = []
         for graph_idx, node_idx_lst in tqdm(graph_indicator.items()):
             graph_x = []
             graph_edge_idx_src = []
             graph_edge_idx_dst = []
+            if dataset_name == "colors":
+                count_green = 0
             for node_idx in node_idx_lst:
+                node_feature_vec = node_features[node_idx - 1]
+                if dataset_name == "colors":
+                    if node_feature_vec[1] == 1:
+                        count_green += 1
                 graph_x.append(node_features[node_idx - 1])
                 if node_idx in A_dict:
                     # has edges pointing out
@@ -76,11 +105,12 @@ def preprocessed_data(dataset_name, file_prefix):
             graph_edge_idx = torch.tensor(
                 [graph_edge_idx_src, graph_edge_idx_dst], dtype=torch.long)
 
-            graph_data = Data(x=graph_x, edge_index=graph_edge_idx)
+            graph_data = Data(
+                x=graph_x,
+                edge_index=graph_edge_idx,
+                y=count_green if
+                dataset_name == "colors" else graph_labels[graph_idx - 1])
             graph_data_list.append(graph_data)
-            # print(graph_x)
-            # print(graph_edge_idx)
-            # print()
 
         with open(dataset_path / "preprocessed_data.pkl", 'wb') as f:
             pickle.dump(graph_data_list, f)
@@ -90,9 +120,11 @@ def preprocessed_data(dataset_name, file_prefix):
 
 def get_loader(
         dataset: str,
-        train: bool = True,
+        mode: int = 0,
         batch_size: int = 32,
         shuffle: bool = True):
+    """Mode: 0 for train, 1 for val, 2 for test"""
+
     if dataset == "geometric_shapes":
         # GeometricShapes
         # Dataset hold mesh faces instead of edge indices
@@ -104,7 +136,6 @@ def get_loader(
         # Colors
         dataset_path = Path("datasets") / dataset
         if not os.path.exists(str(dataset_path / "preprocessed_data.pkl")):
-            print(f"Preprocessing dataset {dataset}")
             graph_data_list = preprocessed_data(
                 dataset, "COLORS-3" if dataset == "colors" else "TRIANGLES")
         else:
@@ -119,28 +150,25 @@ def get_loader(
             batch_size=batch_size,
             shuffle=shuffle)
 
-# class ColorsDataset(Dataset):
-#     def __init__(self, transform=None, pre_transform=None):
-#         super().__init__(transform, pre_transform)
-#         self.data, self.slices = torch.load(self.processed_paths[0])
-
-#     @property
-#     def processed_file_names(self):
-#         return ['data.pt']
-
-#     def process(self):
-#         # Read data into huge `Data` list.
-#         data_list = [...]
-
-#         if self.pre_filter is not None:
-#             data_list = [data for data in data_list if self.pre_filter(data)]
-
-#         if self.pre_transform is not None:
-#             data_list = [self.pre_transform(data) for data in data_list]
-
-#         data, slices = self.collate(data_list)
-#         torch.save((data, slices), self.processed_paths[0])
-
 
 if __name__ == "__main__":
-    get_loader("colors")
+    # _ = get_loader("geometric_shapes", train=True)
+    # print()
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--dataset",
+        type=str,
+        choices=[
+            "geometric_shapes",
+            "colors",
+            "triangles",
+            "all"],
+        required=True)
+
+    args = parser.parse_args()
+
+    if args.dataset == "all":
+        preprocessing_for_all()
+    else:
+        loader = get_loader(args.dataset)
+    print()
