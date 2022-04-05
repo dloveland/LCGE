@@ -128,7 +128,7 @@ def get_loader(
     if dataset == "geometric_shapes":
         # GeometricShapes
         # Dataset hold mesh faces instead of edge indices
-        # the authors does not break it into train/test,
+        # the authors does not break it into train/test, does not support @mode
         dataset = GeometricShapes(root='geometric_shapes')
         loader = DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
         return loader
@@ -143,12 +143,27 @@ def get_loader(
 
             with open(dataset_path / "preprocessed_data.pkl", 'rb') as f:
                 graph_data_list = pickle.load(f)
-                print()
+                # print()
 
-        return DataLoader(
-            graph_data_list,
-            batch_size=batch_size,
-            shuffle=shuffle)
+        num_data = len(graph_data_list)
+        num_train = int(0.8 * num_data)
+        num_val = int(0.1 * num_data)
+
+        if mode == 0:
+            return DataLoader(
+                graph_data_list[:num_train],
+                batch_size=batch_size,
+                shuffle=shuffle)
+        elif mode == 1:
+            return DataLoader(
+                graph_data_list[num_train:num_train + num_val],
+                batch_size=batch_size,
+                shuffle=shuffle)
+        else:
+            return DataLoader(
+                graph_data_list[num_train + num_val:],
+                batch_size=batch_size,
+                shuffle=shuffle)
 
 
 if __name__ == "__main__":
