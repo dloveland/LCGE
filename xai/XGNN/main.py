@@ -27,7 +27,8 @@ def parse_args():
 
 args = parse_args()
 
-explainer = gnn_explain(args, 6, 30,  1, 50)  ####arguments: (max_node, max_step, target_class, max_iters)
+####arguments: (max_node, max_step, target_class, max_iters)
+explainer = gnn_explain(args, 6, 30,  1, 50) 
 
 explainer.train()
 

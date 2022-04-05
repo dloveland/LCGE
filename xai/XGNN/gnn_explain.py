@@ -21,7 +21,6 @@ class gnn_explain():
         print('Start training pipeline')
         self.args = args
         self.graph= nx.Graph()
-   #$     self.mol = Chem.RWMol()  ### keep a mol obj, to check if the graph is valid 
         self.max_node = max_node
         self.max_step = max_step
         self.max_iters = max_iters
@@ -128,15 +127,14 @@ class gnn_explain():
                     #    print('Not adding successful')
                     reward_step = -1
                     total_reward= reward_step+reward_pred
-#                   #print(start_logits_ori)
-                    #print(tail_logits_ori)
                     loss = total_reward*(self.criterion(start_logits_ori[None,:], start_action.expand(1)) + 
                             self.criterion(tail_logits_ori[None,:], tail_action.expand(1)))               
-            #    total_reward= reward_step+reward_pred
-           #     loss = total_reward*(self.criterion(stop_logits[None,:], stop_action.expand(1)) + self.criterion(start_logits_ori[None,:], start_action.expand(1)) + self.criterion(tail_logits_ori[None,:], tail_action.expand(1)))
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_(self.policyNets.parameters(), 100)
                 self.optimizer.step()
+
+        # typically, they start from a pretrained epoch, train to generate a new graph and evaluate 
+        # the generated graph at last
         self.graph_draw(self.graph)
         plt.show()
         X_new, A_new = self.read_from_graph_raw(self.graph)
@@ -154,8 +152,6 @@ class gnn_explain():
         for n in attr:
             labels[n]= self.dict[attr[n]]
             color = color+ self.color[attr[n]]
-           
-     #   labels=dict((n,) for n in attr)
         nx.draw(graph,labels=labels, node_color=color)
         
         
@@ -219,7 +215,6 @@ class gnn_explain():
         X_new = torch.from_numpy(X_new)
         A_new = torch.from_numpy(A_new)
         logits, probs = self.gnnNets(X_new.float(), A_new.float())  
-        ### Todo
         reward = probs[self.target_class] - 0.5
         return reward
         
@@ -237,7 +232,6 @@ class gnn_explain():
     
     def read_from_graph(self, graph): ## read graph with added  candidates nodes
         n = graph.number_of_nodes()
-     #   degrees = [val for (node, val) in self.graph.degree()]
         F = np.zeros((self.max_node+self.node_type, self.node_type))
         attr = nx.get_node_attributes(graph, "label")
         attr = list(attr.values())
@@ -245,7 +239,6 @@ class gnn_explain():
         targets=np.array(attr).reshape(-1)
         one_hot_feature = np.eye(nb_clss)[targets]
         F[:n,:]= one_hot_feature
-    ### then get the onehot features for the candidates nodes
         F[n:n+self.node_type,:]= np.eye(self.node_type)      
         
         E = np.zeros([self.max_node+self.node_type, self.max_node+self.node_type])
@@ -256,25 +249,21 @@ class gnn_explain():
 
     def read_from_graph_raw(self, graph): ### do not add more nodes
         n = graph.number_of_nodes()
-      #  F = np.zeros((self.max_node+self.node_type, 1))
         attr = nx.get_node_attributes(graph, "label")
         attr = list(attr.values())
         nb_clss  = self.node_type
         targets=np.array(attr).reshape(-1)
         one_hot_feature = np.eye(nb_clss)[targets]
-      #  F[:n+1,0] = 1   #### current graph nodes n + candidates set k=1 so n+1
 
         E = np.zeros([n, n])
         E[:n,:n] = np.asarray(nx.to_numpy_matrix(graph))
-     #   E[:n,:n] += np.eye(n)
 
         return one_hot_feature, E
 
     def graph_reset(self):
         self.graph.clear()
-        self.graph.add_node(0, label= 0)  #self.dict = {0:'C', 1:'N', 2:'O', 3:'F', 4:'I', 5:'Cl', 6:'Br'}
+        self.graph.add_node(0, label= 0)  
         
-       # self.graph.add_edge(1, 3)
         self.step = 0
         return 
     
