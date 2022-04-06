@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import scipy.sparse as sp
 import numpy as np
-from pytorch_util import weights_init
+from utils.utils import weights_init
 import sys 
 sys.path.append('/shared-datadrive/shared-training/LCGE')
 from models.gcn import GCN

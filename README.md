@@ -1,22 +1,27 @@
-test
 # XGNN
 
 
 # Usage
 
-## Dataset and Checkpoint
+## Run
 
-Download datasets and place into `datasets` folder. Will need to set up to be loaded properly. 
+To train the GNN or explain the GNN run the main.py as: *python main.py -config_file config.yml*
 
-Place the checkpoints of trained GNNs to be explained in the checkpoint folder inside `XGNN`. Also, modify corresponding paths if needed.
 
-An example of how to train a model is in `training/gnn.py`, which can then be placed into XGNNs checkpoint folder.  
+## Config File and other considerations
 
-XGNN's original data and checkpoint are available (https://drive.google.com/drive/u/2/folders/1To5IQa-3H_m48OwhJzEhIwz1swnHcOoz). 
+The config.yml includes all configuration parameters from data read and storage to model hyperparameters.
 
-## The XGNN Algorithm
+This config file covers almost all hard-coded parameters for most XGNN files except policy_nn.py. Feel free to add.
 
-The policy network of our XGNN is defined in "policy_nn.py". You can modify it as needed, depending on the GNNs/tasks at hand. 
+I inserted the previous version of gcn.py for sanity check. Feel free to revert.
+
+The requirements.txt file is changed based on my own configurations and python version, may need to merge.
+
+
+## XGNN Algorithm
+
+The policy network of our XGNN is defined in "policy_nn.py". You can modify it as needed, depending on the GNNs/tasks at hand.
 
 The explanation generation stage is defined in "gnn_explain.py". You can tune the hyper-parameters as needed. 
 
