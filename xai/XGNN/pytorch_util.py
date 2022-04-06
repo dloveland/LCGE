@@ -1,39 +1,34 @@
+""" Some helper functions for PyTorch, including:
+    - normalize_adj/normalize_adj_: systematically normalize adjacency matrix
+    - get_mean_and_std: calculate the mean and std value of dataset.
+    - msr_init: net parameter initialization.
+    - progress_bar: progress bar mimic xlua.progress. """
+
 import numpy as np
-from torch.nn.parameter import Parameter
-import torch.nn as nn
+import sys
+import time
+import torch
 
 
-def glorot_uniform(t):
-    if len(t.size()) == 2:
-        fan_in, fan_out = t.size()
-    elif len(t.size()) == 3:
-        # out_ch, in_ch, kernel for Conv 1
-        fan_in = t.size()[1] * t.size()[2]
-        fan_out = t.size()[0] * t.size()[2]
-    else:
-        fan_in = np.prod(t.size())
-        fan_out = np.prod(t.size())
-
-    limit = np.sqrt(6.0 / (fan_in + fan_out))
-    t.uniform_(-limit, limit)
+def normalize_adj(adj):
+    """Symmetrically normalize adjacency matrix."""
+    # print("===Normalizing adjacency matrix symmetrically===")
+    adj = adj.numpy()
+    N = adj.shape[0]
+    adj = adj + np.eye(N)
+    D = np.sum(adj, 0)
+    D_hat = np.diag(D ** (-0.5))
+    out = np.dot(D_hat, adj).dot(D_hat)
+    out = torch.from_numpy(out)
+    return out, out
 
 
-def _param_init(m):
-    if isinstance(m, Parameter):
-        glorot_uniform(m.data)
-    elif isinstance(m, nn.Linear):
-        m.bias.data.zero_()
-        glorot_uniform(m.weight.data)
-
-
-def weights_init(m):
-    for p in m.modules():
-        if isinstance(p, nn.ParameterList):
-            for pp in p:
-                _param_init(pp)
-        else:
-            _param_init(p)
-
-    for name, p in m.named_parameters():
-        if '.' not in name:
-            _param_init(p)
+def normalize_adj_(adj):
+    """Symmetrically normalize adjacency matrix with minor changes to normalize_adj function."""
+    adj = adj.numpy()
+    D = np.sum(adj, 0)
+    D_hat = np.diag(np.power(D,-0.5))
+    out = np.dot(D_hat, adj).dot(D_hat)
+    out[np.isnan(out)]=0
+    out = torch.from_numpy(out)
+    return out, out.float()
