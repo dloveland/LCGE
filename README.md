@@ -1,14 +1,6 @@
-# XGNN
-
-
-# Usage
-
-## Run
+# Notes
 
 To train the GNN or explain the GNN run the main.py as: *python main.py -config_file config.yml*
-
-
-## Config File and other considerations
 
 The config.yml includes all configuration parameters from data read and storage to model hyperparameters.
 
@@ -17,6 +9,10 @@ This config file covers almost all hard-coded parameters for most XGNN files exc
 I inserted the previous version of gcn.py for sanity check. Feel free to revert.
 
 The requirements.txt file is changed based on my own configurations and python version, may need to merge.
+
+# XGNN
+
+# Usage
 
 
 ## XGNN Algorithm
