@@ -15,7 +15,7 @@ from tqdm import tqdm
 from torch_geometric.data import Data, Batch
 from torch_geometric.nn import MessagePassing
 from torch_geometric.utils import k_hop_subgraph, to_networkx, sort_edge_index, dense_to_sparse, to_dense_adj
-
+from ..XGNN.gnn_explain import gnn_explain()
 from ismember import ismember
 
 
@@ -127,7 +127,7 @@ class GNNExplainer(torch.nn.Module):
         return f'{self.__class__.__name__}()'
 
 
-class fair_edit_trainer():
+class continuous_gnn_explain(gnn_explain):
     def __init__(self, model=None, dataset=None, optimizer=None, features=None, edge_index=None, 
                     labels=None, device=None, train_idx=None, val_idx=None, sens_idx=None, edit_num=10, sens=None):
         self.model = model
