@@ -29,6 +29,7 @@ learning_rate: 0.01
 roll_out_alpha: 2
 roll_out_penalty: -0.1
 reward_stepwise: 0.1
+start_from: "existing" # whether start from existing graph or set the graph
 
 #device: -1
 #log_file: train.log

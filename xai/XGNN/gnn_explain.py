@@ -37,6 +37,7 @@ class gnn_explain():
         self.dict = {int(k): v for k, v in node_attributes["node_types"].items()}
         self.color = {int(k): v for k, v in node_attributes["node_colors"].items()}
         self.max_poss_degree = {int(k): v for k, v in node_attributes["node_max_degree"].items()}
+        self.start_from = cfg.start_from
 
     def train(self, model_checkpoints_dir, model_file):
         print('Training gnn_explain Started...')
@@ -45,7 +46,15 @@ class gnn_explain():
         self.gnnNets.load_state_dict(checkpoint['net'])
 
         for i in range(self.max_iters):
-            self.graph_reset()
+            if self.start_from == "existing":
+                self.load_graph = nx.Graph()
+                self.load_graph.add_node(0, label= 0)
+                self.load_graph.add_node(1, label= 0)
+                self.load_graph.add_node(2, label= 0)
+                self.load_graph.add_edges_from([(0, 1), (0, 2)])
+                self.graph = self.load_graph.copy()
+            else:
+                self.graph_reset()
             for j in range(self.max_step):
                 self.optimizer.zero_grad()
                 reward_pred = 0
