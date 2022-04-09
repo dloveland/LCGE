@@ -20,17 +20,18 @@ gnn_weight_decay: 5e-4
 model_file: original_XGNN_MUTAG_ckpt.pth
 
 # GNN_explain
-max_nodes: 4
-max_steps: 30
-max_iters: 50
+max_nodes: 5
+max_steps: 20
+max_iters: 5
 num_classes: 2
 node_types: 7
 target_class: 1
-learning_rate: 0.01
+learning_rate: 0.0001
 roll_out_alpha: 2
 roll_out_penalty: -0.1
 reward_stepwise: 0.1
 start_from: "existing" # whether start from existing graph or set the graph
+#start_from: ""
 
 #device: -1
 #log_file: train.log

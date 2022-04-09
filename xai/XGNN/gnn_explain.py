@@ -13,10 +13,13 @@ from training.gnns import DisNets
 from xai.continuous_XGNN.utils import progress_bar
 from ..XGNN.policy_nn import PolicyNN
 from training.gnns import DisNets
-import matplotlib
-matplotlib.use('agg')
-import matplotlib.pyplot as plt
+#import matplotlib
+#matplotlib.use('agg')
+#import matplotlib.pyplot as plt
 import sys
+from datasets.get_loader import get_loader
+from torch_geometric.data import Data
+from torch_geometric.utils.convert import to_networkx
 # sys.path.append('/shared-datadrive/shared-training/LCGE')
 
 
@@ -43,38 +46,46 @@ class gnn_explain():
         self.color = {int(k): v for k, v in node_attributes["node_colors"].items()}
         self.max_poss_degree = {int(k): v for k, v in node_attributes["node_max_degree"].items()}
         self.start_from = cfg.start_from
+        self.cfg = cfg
 
     def train(self, model_checkpoints_dir, model_file):
         print('Training gnn_explain Started...')
         # given the well-trained model, Load the model
         checkpoint = torch.load(os.path.join(model_checkpoints_dir, model_file))
         self.gnnNets.load_state_dict(checkpoint['net'])
+ 
+        # Get test data loader to use for explanations
+        test_data_loader = get_loader(self.cfg.dataset, mode=2, shuffle=True, batch_size=1)
+        test_data = []
+        for d in test_data_loader: 
+            test_data.append(d)
+        test_graph = test_data[0]
 
         for i in range(self.max_iters):
             if self.start_from == "existing":
-                self.load_graph = nx.Graph()
-                self.load_graph.add_node(0, label= 0)
-                self.load_graph.add_node(1, label= 0)
-                self.load_graph.add_node(2, label= 0)
-                self.load_graph.add_edges_from([(0, 1), (0, 2)])
-                self.graph = self.load_graph.copy()
+                # Set the self.graph to a particular test graph to start the editing process for local explanations
+                self.seeded_graph_reset(test_graph.x, test_graph.edge_index)
+                self.target_class = test_graph.y
             else:
+                # Get the self.graph to a single node graph to start the editing process for global explanations 
                 self.graph_reset()
+
             for j in range(self.max_step):
                 self.optimizer.zero_grad()
                 reward_pred = 0
                 reward_step = 0
                 n = self.graph.number_of_nodes()
-                if (n > self.max_node):
+                if (n > n + self.max_node):
                     break
                 self.graph_old = copy.deepcopy(self.graph)
                 # get the embeddings
                 X, A = self.read_from_graph(self.graph)
                 X = torch.from_numpy(X)
                 A = torch.from_numpy(A)
+
                 # Feed to the policy nets for actions
                 start_action, start_logits_ori, tail_action, tail_logits_ori = self.policyNets(X.float(), A.float(),
-                                                                                               n + self.node_type)
+                                                                                            n + self.node_type)
 
                 # flag is used to track whether adding operation is success/valid.
                 if tail_action >= n:  # we need to add node, then add edge
@@ -95,6 +106,7 @@ class gnn_explain():
                         X_new = torch.from_numpy(X_new)
                         A_new = torch.from_numpy(A_new)
                         logits, probs = self.gnnNets(X_new.float(), A_new.float())
+            
                         # based on logits, define the reward
                         _, prediction = torch.max(logits, 0)
                         if self.target_class == prediction:  # positive reward
@@ -115,12 +127,12 @@ class gnn_explain():
                             self.graph = copy.deepcopy(self.graph_old)  # rollback
                         #  total_reward= reward_step+reward_pred
                         loss = total_reward * (self.criterion(start_logits_ori[None, :], start_action.expand(1))
-                                               + self.criterion(tail_logits_ori[None, :], tail_action.expand(1)))
+                                            + self.criterion(tail_logits_ori[None, :], tail_action.expand(1)))
                     else:
                         total_reward = -1  # graph is not valid
                         self.graph = copy.deepcopy(self.graph_old)
                         loss = total_reward * (self.criterion(start_logits_ori[None, :], start_action.expand(1))
-                                               + self.criterion(tail_logits_ori[None, :], tail_action.expand(1)))
+                                            + self.criterion(tail_logits_ori[None, :], tail_action.expand(1)))
                 else:
                     # in case adding edge was not successful
                     # do not evaluate
@@ -129,12 +141,12 @@ class gnn_explain():
                     # print(start_logits_ori)
                     # print(tail_logits_ori)
                     loss = total_reward * (self.criterion(start_logits_ori[None, :], start_action.expand(1)) +
-                                           self.criterion(tail_logits_ori[None, :], tail_action.expand(1)))
+                                        self.criterion(tail_logits_ori[None, :], tail_action.expand(1)))
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_(self.policyNets.parameters(), 100)
                 self.optimizer.step()
-        self.graph_draw(self.graph)
-        plt.show()
+        #self.graph_draw(self.graph)
+        #plt.show()
         X_new, A_new = self.read_from_graph_raw(self.graph)
         X_new = torch.from_numpy(X_new)
         A_new = torch.from_numpy(A_new)
@@ -217,7 +229,7 @@ class gnn_explain():
     def read_from_graph(self, graph):  # read graph with added candidates nodes
         n = graph.number_of_nodes()
         # degrees = [val for (node, val) in self.graph.degree()]
-        F = np.zeros((self.max_node + self.node_type, self.node_type))
+        F = np.zeros((n + self.max_node + self.node_type, self.node_type))
         attr = nx.get_node_attributes(graph, "label")
         attr = list(attr.values())
         nb_clss = self.node_type
@@ -227,7 +239,7 @@ class gnn_explain():
         # then get the onehot features for the candidates nodes
         F[n:n + self.node_type, :] = np.eye(self.node_type)
 
-        E = np.zeros([self.max_node + self.node_type, self.max_node + self.node_type])
+        E = np.zeros([n + self.max_node + self.node_type, n + self.max_node + self.node_type])
         E[:n, :n] = np.asarray(nx.to_numpy_matrix(graph))
         E[:self.max_node + self.node_type, :self.max_node + self.node_type] += np.eye(self.max_node + self.node_type)
         return F, E
@@ -237,13 +249,27 @@ class gnn_explain():
         attr = nx.get_node_attributes(graph, "label")
         attr = list(attr.values())
         nb_clss = self.node_type
-        targets=np.array(attr).reshape(-1)
+        targets=np.array(attr).reshape(-1).astype(int)
         one_hot_feature = np.eye(nb_clss)[targets]
 
         E = np.zeros([n, n])
         E[:n,:n] = np.asarray(nx.to_numpy_matrix(graph))
 
         return one_hot_feature, E
+
+    def seeded_graph_reset(self, x, edge_index):
+        # Takes in a pytorch geometric data and creates an attributed networkx object 
+        self.graph.clear()
+        edge_index = edge_index.numpy()
+        feat_idx = np.argmax(x.numpy(), axis=1)
+        for n in range(x.shape[0]):
+            self.graph.add_node(n, label=feat_idx[n])
+
+        for e in range(edge_index.shape[1]):
+            self.graph.add_edge(edge_index[0][e], edge_index[1][e])
+        self.step = 0
+        return
+        
 
     def graph_reset(self):
         self.graph.clear()

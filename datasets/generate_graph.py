@@ -1,13 +1,13 @@
 from torch_geometric.utils import from_networkx
 import torch
 import numpy as np
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 from pathlib import Path
 import pickle
 import networkx as nx
-import matplotlib
+#import matplotlib
 # import datasets
-matplotlib.use('agg')
+#matplotlib.use('agg')
 
 
 def draw_graph(G, filename="graph.png"):
