@@ -143,6 +143,8 @@ class ConfigurationParer():
                         default=0.1,
                         help='reward_stepwise for graph generation model.')
 
+        self.parser.add('-start_from', '--start_from', type=str)
+
     def parse_args(self):
         """This function parses arguments and initializes logger
 
