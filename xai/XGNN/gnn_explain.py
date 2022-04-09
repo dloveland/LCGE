@@ -58,7 +58,9 @@ class gnn_explain():
         test_data_loader = get_loader(self.cfg.dataset, mode=2, shuffle=True, batch_size=1)
         test_data = []
         for d in test_data_loader: 
+            # Just use one for now and handle mutiple explanations in main?
             test_data.append(d)
+            break 
         test_graph = test_data[0]
 
         for i in range(self.max_iters):
