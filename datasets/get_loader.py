@@ -13,6 +13,7 @@ from tqdm import tqdm
 import argparse
 from datasets.generate_graph import generate_acyclic
 
+MAX_DEGREE = -1
 
 def num_class_dict(dataset_name):
     dict = {

@@ -17,7 +17,7 @@ gnn_weight_decay: 5e-4
 # graph_labels_file: MUTAG_graph_labels.txt
 # graph_indicator_file: MUTAG_graph_indicator.txt
 # node_labels_file: MUTAG_node_labels.txt
-model_file: test.pth
+model_file: test_mutag.pth
 
 # GNN_explain
 max_nodes: 4

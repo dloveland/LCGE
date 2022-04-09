@@ -1,0 +1,11 @@
+{
+    "node_types": {
+        "0": "v"
+    },
+    "node_colors": {
+      "0": "red"
+    },
+    "node_max_degree": {
+      "0": 12
+    }
+}
