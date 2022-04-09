@@ -37,6 +37,8 @@ class gnn_explain():
         self.dict = {int(k): v for k, v in node_attributes["node_types"].items()}
         self.color = {int(k): v for k, v in node_attributes["node_colors"].items()}
         self.max_poss_degree = {int(k): v for k, v in node_attributes["node_max_degree"].items()}
+        self.features = None
+        self.edge_index = None 
 
     def train(self, model_checkpoints_dir, model_file):
         print('Training gnn_explain Started...')

@@ -1,3 +1,4 @@
+from audioop import add
 import numpy as np
 import torch
 import torch.nn.functional as F
@@ -15,9 +16,9 @@ from tqdm import tqdm
 from torch_geometric.data import Data, Batch
 from torch_geometric.nn import MessagePassing
 from torch_geometric.utils import k_hop_subgraph, to_networkx, sort_edge_index, dense_to_sparse, to_dense_adj
-from ..XGNN.gnn_explain import gnn_explain()
+from ..XGNN.gnn_explain import gnn_explain
 from ismember import ismember
-
+import os
 
     
 EPS = 1e-15
@@ -128,52 +129,20 @@ class GNNExplainer(torch.nn.Module):
 
 
 class continuous_gnn_explain(gnn_explain):
-    def __init__(self, model=None, dataset=None, optimizer=None, features=None, edge_index=None, 
-                    labels=None, device=None, train_idx=None, val_idx=None, sens_idx=None, edit_num=10, sens=None):
-        self.model = model
-        self.model_name = model.model_name
-        self.dataset = dataset
-        self.optimizer = optimizer
-        self.features = features
-        self.edge_index = edge_index
-        self.edge_index_orign = copy.deepcopy(self.edge_index)
-        self.labels = labels
-        self.device = device
-        self.train_idx = train_idx
-        self.val_idx = val_idx
-        self.edit_num = edit_num
-        self.perturbed_edge_index = None
-        self.sens_idx = sens_idx
-        self.sens = sens
-        counter_features = features.clone()
-        counter_features[:, sens_idx] = 1 - counter_features[:, sens_idx]
-        self.counter_features = counter_features
-        sens_att = self.features[:, self.sens_idx].int()
-        sens_matrix_base = sens_att.reshape(-1, 1) + sens_att
-        self.sens_matrix_delete = torch.where(sens_matrix_base != 1, 1, 0).fill_diagonal_(0).int()
-        self.sens_matrix_add = torch.where(sens_matrix_base == 1, 1, 0).fill_diagonal_(0).int()
     
-    def add_drop_edge_random(self, add_prob=0.001, del_prob=0.01):
+    def add_drop_edge_random(self, add_prob=0.5, del_prob=0.5):
         
-        N, F = self.features.size() 
+        N, F = self.features.size()
+        print(self.edge_index)
         E = self.edge_index.size(1)
-
-        # Get the current graph and filter sensitives based on what is already there
-        dense_adj = torch.abs(to_dense_adj(self.edge_index)[0, :, :]).fill_diagonal_(0).int()
-        to_delete = torch.logical_and(dense_adj, self.sens_matrix_delete).int()
-        to_add = torch.logical_and(dense_adj, self.sens_matrix_add).int()
 
         # Generate scores 
         scores = torch.Tensor(np.random.uniform(0, 1, (N, N)))
 
         # DELETE
-        masked_scores = scores * to_delete
-        masked_scores = torch.triu(masked_scores, diagonal=1)
-        num_non_zero = torch.count_nonzero(masked_scores)
+        
         edits_to_make = floor(E * del_prob)
-        if num_non_zero < edits_to_make:
-            edits_to_make = num_non_zero
-        top_delete = torch.topk(masked_scores.flatten(), edits_to_make).indices
+        top_delete = torch.topk(scores.flatten(), edits_to_make).indices
         base_end = torch.remainder(top_delete, N)
         base_start = torch.floor_divide(top_delete, N)
         end = torch.cat((base_end, base_start))
@@ -181,13 +150,8 @@ class continuous_gnn_explain(gnn_explain):
         delete_indices = torch.stack([end, start])
 
         # ADD
-        masked_scores = scores * to_add
-        masked_scores = torch.triu(masked_scores, diagonal=1)
-        num_non_zero = torch.count_nonzero(masked_scores)
         edits_to_make = floor(N**2 * add_prob)
-        if num_non_zero < edits_to_make:
-            edits_to_make = num_non_zero
-        top_adds = torch.topk(masked_scores.flatten(), edits_to_make).indices
+        top_adds = torch.topk(scores.flatten(), edits_to_make).indices
         base_end = torch.remainder(top_adds, N)
         base_start = torch.floor_divide(top_adds, N)
         end = torch.cat((base_end, base_start))
@@ -202,6 +166,7 @@ class continuous_gnn_explain(gnn_explain):
         # Edges deleted from original edge_index
         delete_indices = []
         self.perturbed_edge_index = copy.deepcopy(self.edge_index)
+        print(deleted_edges)
         for edge in deleted_edges.T:
             vals = (self.edge_index == torch.tensor([[edge[0]], [edge[1]]]))
             sum = torch.sum(vals, dim=0)
@@ -219,10 +184,19 @@ class continuous_gnn_explain(gnn_explain):
 
         return delete_indices, add_indices
 
-    def fair_graph_edit(self):
+    def train(self, model_checkpoints_dir, model_file):
         
-        grad_gen = GNNExplainer(self.model)
+        self.graph_reset()
+
+        checkpoint = torch.load(os.path.join(model_checkpoints_dir, model_file))
+        self.gnnNets.load_state_dict(checkpoint['net'])
+
+        X, A = self.read_from_graph(self.graph)
+        self.features = torch.from_numpy(X)
+        self.edge_index = torch.from_numpy(A)
+        grad_gen = GNNExplainer(self.gnnNets)
     
+        print(grad_gen)
         # perturb graph (return the ACTUAL edges)
         deleted_edges, added_edges = self.add_drop_edge_random()         
         # get indices of pertubations in edge list (indices in particular edge_lists)             

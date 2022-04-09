@@ -1,5 +1,6 @@
 from utils.argparse import ConfigurationParer
 from xai.XGNN.gnn_explain import gnn_explain
+from xai.continuous_XGNN.continuous_relax import continuous_gnn_explain
 from training.train_gnn import train
 import logging
 import json
@@ -20,10 +21,14 @@ def main():
     if cfg.train_gnn:
         train(cfg)
 
-    # explain GNN
-    gnn_explainer = gnn_explain(cfg)
-    gnn_explainer.train(cfg.model_checkpoints_dir, cfg.model_file)
+    # explain GNN through XGNN
+    #gnn_explainer = gnn_explain(cfg)
+    #gnn_explainer.train(cfg.model_checkpoints_dir, cfg.model_file)
 
+    # Continuous relax to explain
+    gnn_explainer = continuous_gnn_explain(cfg)
+    gnn_explainer.train(cfg.model_checkpoints_dir, cfg.model_file)
+   
 
 if __name__ == '__main__':
     main()
