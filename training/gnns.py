@@ -13,6 +13,7 @@ class DisNets(nn.Module):
         super(DisNets, self).__init__()
         self.latent_dim = latent_dim
         self.input_dim = input_dim
+        self.mlp_hidden = mlp_hidden
 
         # self.input_mlp = nn.Linear(self.input_dim, initial_dim)
 
@@ -26,9 +27,12 @@ class DisNets(nn.Module):
 
         self.Softmax = nn.Softmax(dim=0)
 
-        self.h1_weights = nn.Linear(self.dense_dim, mlp_hidden)
-        self.h2_weights = nn.Linear(mlp_hidden, num_class)
-        self.mlp_non_linear = nn.ELU()
+        if mlp_hidden == -1:
+            self.h_weights = nn.Linear(self.dense_dim, num_class)
+        else:
+            self.h1_weights = nn.Linear(self.dense_dim, mlp_hidden)
+            self.h2_weights = nn.Linear(mlp_hidden, num_class)
+            self.mlp_non_linear = nn.ELU()
 
         weights_init(self)
 
@@ -46,9 +50,13 @@ class DisNets(nn.Module):
             cur_out = self.gcns[i](cur_A, cur_out)
 
         graph_embedding = torch.mean(cur_out, 0)
-        h1 = self.h1_weights(graph_embedding)
-        h1 = self.mlp_non_linear(h1)
-        logits = self.h2_weights(h1)
+
+        if self.mlp_hidden == -1:
+            logits = self.h_weights(graph_embedding)
+        else:
+            h1 = self.h1_weights(graph_embedding)
+            h1 = self.mlp_non_linear(h1)
+            logits = self.h2_weights(h1)
         probs = self.Softmax(logits)
 
         return logits, probs

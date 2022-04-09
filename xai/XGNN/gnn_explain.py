@@ -10,6 +10,11 @@ import copy
 import torch.optim as optim
 from ..XGNN.policy_nn import PolicyNN
 from training.gnns import DisNets
+from xai.continuous_XGNN.utils import progress_bar
+from ..XGNN.policy_nn import PolicyNN
+from training.gnns import DisNets
+import matplotlib
+matplotlib.use('agg')
 import matplotlib.pyplot as plt
 import sys
 # sys.path.append('/shared-datadrive/shared-training/LCGE')
@@ -28,7 +33,7 @@ class gnn_explain():
         self.roll_out_alpha = cfg.roll_out_alpha
         self.roll_out_penalty = cfg.roll_out_penalty
         self.policyNets = PolicyNN(self.node_type, self.node_type)
-        self.gnnNets = DisNets()
+        self.gnnNets = DisNets(cfg.input_dim)
         self.reward_stepwise = cfg.reward_stepwise
         self.target_class = cfg.target_class
         self.criterion = nn.CrossEntropyLoss()
