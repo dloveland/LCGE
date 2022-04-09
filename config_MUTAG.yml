@@ -31,6 +31,7 @@ roll_out_alpha: 2
 roll_out_penalty: -0.1
 reward_stepwise: 0.1
 start_from: "existing" # whether start from existing graph or set the graph
+test_idx: [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19]
 #start_from: ""
 
 #device: -1

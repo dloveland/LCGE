@@ -154,7 +154,12 @@ class ConfigurationParer():
                         default=0.1,
                         help='reward_stepwise for graph generation model.')
 
-        self.parser.add('-start_from', '--start_from', type=str)
+        self.parser.add('-start_from', '--start_from', type=str,
+                        help = 'whether start from an existing graph or start from an empty graph')
+
+
+        self.parser.add('-test_idx', '--test_idx', nargs='+', type=int,
+                        help = 'if start from an existing graph, what is the test idx of the graph you want to load')        
 
     def parse_args(self):
         """This function parses arguments and initializes logger

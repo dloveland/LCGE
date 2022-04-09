@@ -10,6 +10,7 @@ venv/
 venv3/
 .venv/
 .pytest_cache
+xai_results
 
 # Data
 preprocessed_data.pkl
