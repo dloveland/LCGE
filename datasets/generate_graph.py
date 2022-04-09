@@ -5,6 +5,7 @@ import matplotlib
 matplotlib.use('agg')
 import matplotlib.pyplot as plt
 import numpy as np
+import torch
 from torch_geometric.utils import from_networkx
 
 
@@ -16,6 +17,7 @@ def draw_graph(G, filename="graph.png"):
 
 def format_data(G, is_cyclic=0):
     data = from_networkx(G)
+    data.x = torch.ones((G.order(), 1))
     data.y = is_cyclic
     return data
 

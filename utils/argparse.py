@@ -37,34 +37,39 @@ class ConfigurationParer():
         """This function adds dataset arguments: data file path...
         """
 
-        self.parser.add('-data_dir', '--data_dir', type=str, required=True, help='dataset directory.')
+        # self.parser.add('-data_dir', '--data_dir', type=str, required=True, help='dataset directory.')
         self.parser.add('-data_file', '--data_file', type=str, required=True,
                         help='graph related data on nodes types and attributes.')
+        self.parser.add('-dataset',
+                        '--dataset',
+                        type=str,
+                        default='MUTAG',
+                        help='Dataset name.')
         self.parser.add('-model_file', '--model_file', type=str, required=True, help='model data file.')
         self.parser.add('-train_gnn', '--train_gnn', action='store_true', help='train GNN')
-        self.parser.add('-adjacency_matrix_file',
-                        '--adjacency_matrix_file',
-                        type=str,
-                        default='MUTAG_A.txt',
-                        help='Adjacency file.')
+        # self.parser.add('-adjacency_matrix_file',
+        #                 '--adjacency_matrix_file',
+        #                 type=str,
+        #                 default='MUTAG_A.txt',
+        #                 help='Adjacency file.')
 
-        self.parser.add('-graph_labels_file',
-                        '--graph_labels_file',
-                        type=str,
-                        default='MUTAG_graph_labels.txt',
-                        help='graph labels file.')
+        # self.parser.add('-graph_labels_file',
+        #                 '--graph_labels_file',
+        #                 type=str,
+        #                 default='MUTAG_graph_labels.txt',
+        #                 help='graph labels file.')
 
-        self.parser.add('-graph_indicator_file',
-                        '--graph_indicator_file',
-                        type=str,
-                        default='MUTAG_graph_indicator.txt',
-                        help='graph indicator file.')
+        # self.parser.add('-graph_indicator_file',
+        #                 '--graph_indicator_file',
+        #                 type=str,
+        #                 default='MUTAG_graph_indicator.txt',
+        #                 help='graph indicator file.')
 
-        self.parser.add('-node_labels_file',
-                        '--node_labels_file',
-                        type=str,
-                        default='MUTAG_node_labels.txt',
-                        help='node labels file.')
+        # self.parser.add('-node_labels_file',
+        #                 '--node_labels_file',
+        #                 type=str,
+        #                 default='MUTAG_node_labels.txt',
+        #                 help='node labels file.')
 
     def add_model_cfgs(self):
         """This function adds model (network) arguments: embedding, hidden unit...
@@ -82,7 +87,13 @@ class ConfigurationParer():
                   type=int,
                   default=32,
                   help='mlp hidden size for the trained GNN.')
-
+        
+        group.add('-input_dim',
+                  '--input_dim',
+                  type=int,
+                  # action='append',
+                  # nargs='*',
+                  help='input dim for training GNN.')
         group.add('-latent_dim',
                   '--latent_dim',
                   type=str,
@@ -157,8 +168,8 @@ class ConfigurationParer():
         if not os.path.exists(cfg.save_dir):
             os.makedirs(cfg.save_dir)
 
-        cfg.dataset_dir = os.path.join('datasets', cfg.data_dir)
-        cfg.data_file = os.path.join(cfg.dataset_dir, "data_file.json")
+        # cfg.dataset_dir = os.path.join('datasets', cfg.data_dir)
+        cfg.data_file = os.path.join('datasets', cfg.dataset, "data_file.json")
 
         cfg.model_checkpoints_dir = os.path.join(cfg.save_dir, 'model_checkpoints')
         if not os.path.exists(cfg.model_checkpoints_dir):
