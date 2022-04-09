@@ -1,5 +1,6 @@
 import json
 import os
+from pyexpat import model
 import random
 
 import networkx as nx
@@ -48,20 +49,31 @@ class gnn_explain():
         self.start_from = cfg.start_from
         self.cfg = cfg
 
-    def train(self, model_checkpoints_dir, model_file):
+    def train(self, model_checkpoints_dir, model_file, test_idx=0):
         print('Training gnn_explain Started...')
         # given the well-trained model, Load the model
         checkpoint = torch.load(os.path.join(model_checkpoints_dir, model_file))
         self.gnnNets.load_state_dict(checkpoint['net'])
  
+        print(self.cfg.model_file)
+        base_file = self.cfg.model_file.split('.')[0]
+        print(base_file)
+        if not os.path.exists('xai_results/{0}'.format(base_file)):
+            os.makedirs('xai_results/{0}'.format(base_file))
+
+        param_str = 'max_node_{0}_max_step_{1}_max_iters_{2}'.format(self.max_node, self.max_step, self.max_iters)
+        save_folder = 'xai_results/{0}/{1}'.format(base_file, param_str)
+        if not os.path.exists(save_folder):
+            os.makedirs(save_folder)
+ 
         # Get test data loader to use for explanations
-        test_data_loader = get_loader(self.cfg.dataset, mode=2, shuffle=True, batch_size=1)
+        test_data_loader = get_loader(self.cfg.dataset, mode=2, shuffle=False, batch_size=1)
         test_data = []
+        #TODO fix this, shouldnt need to unpack dataloader for one datapoint
         for d in test_data_loader: 
             # Just use one for now and handle mutiple explanations in main?
             test_data.append(d)
-            break 
-        test_graph = test_data[0]
+        test_graph = test_data[test_idx]
 
         for i in range(self.max_iters):
             if self.start_from == "existing":
@@ -154,6 +166,15 @@ class gnn_explain():
         A_new = torch.from_numpy(A_new)
         logits, probs = self.gnnNets(X_new.float(), A_new.float())
         prob = probs[self.target_class].item()
+
+        iter_count = 0
+        if os.path.exists('{0}/test_idx_{1}_iter_{2}.npz'.format(save_folder, test_idx, iter_count)):
+            files = os.listdir('{0}'.format(save_folder))
+            files.sort()
+            iter_count = int(files[-1].split('_')[-1].split('.')[0]) + 1
+        np.savez('{0}/test_idx_{1}_iter_{2}.npz'.format(save_folder, test_idx, iter_count), \
+                 X_new.numpy(), A_new.numpy(), probs.detach().numpy(), self.target_class)
+
         print("Probability of GNN's target class given the generated pattern: ", prob)
 
     def graph_draw(self, graph):
