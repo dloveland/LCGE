@@ -11,11 +11,11 @@ import copy
 import torch.optim as optim
 from training.gnns import DisNets
 from xai.continuous_XGNN.utils import progress_bar
-from ..XGNN.policy_nn_deletion import PolicyNN
+from ..XGNN.policy_nn import PolicyNN
 from training.gnns import DisNets
-import matplotlib
-matplotlib.use('agg')
-import matplotlib.pyplot as plt
+# import matplotlib
+# matplotlib.use('agg')
+# import matplotlib.pyplot as plt
 import sys
 from datasets.get_loader import get_loader
 from torch_geometric.data import Data
@@ -99,6 +99,7 @@ class gnn_explain():
                 add_or_delete, start_action, start_logits_ori, tail_action, tail_logits_ori = self.policyNets(X.float(), A.float(),
                                                                                             n + self.node_type)
 
+                print(add_or_delete)
                 # flag is used to track whether adding/deleting operation is success/valid.
                 if tail_action >= n:  # we need to add node, then add edge
                     if n == self.max_node:
@@ -171,10 +172,10 @@ class gnn_explain():
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_(self.policyNets.parameters(), 100)
                 self.optimizer.step()
-        self.graph_draw(self.graph)
-        plt.show()
-        plt.savefig("Graph.png", format="PNG")
-        plt.clf()
+        # self.graph_draw(self.graph)
+        # plt.show()
+        # plt.savefig("Graph.png", format="PNG")
+        # plt.clf()
         X_new, A_new = self.read_from_graph_raw(self.graph)
         X_new = torch.from_numpy(X_new)
         A_new = torch.from_numpy(A_new)
