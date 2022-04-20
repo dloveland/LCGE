@@ -9,19 +9,17 @@ import torch.nn as nn
 import numpy as np
 import copy
 import torch.optim as optim
-from ..XGNN.policy_nn import PolicyNN
 from training.gnns import DisNets
 from xai.continuous_XGNN.utils import progress_bar
-from ..XGNN.policy_nn import PolicyNN
+from ..XGNN.policy_nn_deletion import PolicyNN
 from training.gnns import DisNets
-#import matplotlib
-#matplotlib.use('agg')
-#import matplotlib.pyplot as plt
+import matplotlib
+matplotlib.use('agg')
+import matplotlib.pyplot as plt
 import sys
 from datasets.get_loader import get_loader
 from torch_geometric.data import Data
 from torch_geometric.utils.convert import to_networkx
-# sys.path.append('/shared-datadrive/shared-training/LCGE')
 
 
 class gnn_explain():
@@ -49,7 +47,7 @@ class gnn_explain():
         self.start_from = cfg.start_from
         self.cfg = cfg
 
-    def train(self, model_checkpoints_dir, model_file, test_idx=0):
+    def train(self, model_checkpoints_dir, model_file, test_idx=0, iter_count=0):
         print('Training gnn_explain Started...')
         # given the well-trained model, Load the model
         checkpoint = torch.load(os.path.join(model_checkpoints_dir, model_file))
@@ -98,18 +96,32 @@ class gnn_explain():
                 A = torch.from_numpy(A)
 
                 # Feed to the policy nets for actions
-                start_action, start_logits_ori, tail_action, tail_logits_ori = self.policyNets(X.float(), A.float(),
+                add_or_delete, start_action, start_logits_ori, tail_action, tail_logits_ori = self.policyNets(X.float(), A.float(),
                                                                                             n + self.node_type)
 
-                # flag is used to track whether adding operation is success/valid.
+                # flag is used to track whether adding/deleting operation is success/valid.
                 if tail_action >= n:  # we need to add node, then add edge
                     if n == self.max_node:
                         flag = False
-                    else:
+                    elif add_or_delete <= 0.5: # add node & edge
+                        print("addition")
                         self.add_node(self.graph, n, tail_action.item() - n)
-                        flag = self.add_edge(self.graph, start_action.item(), n)
-                else:
-                    flag = self.add_edge(self.graph, start_action.item(), tail_action.item())
+                        flag = self.add_edge(self.graph, start_action.item(), n)                        
+                    else: #  for deleteion, you always need to start from an existing node
+                        flag = False
+                        print("Both the start and tail node of deletion should exist in the orig graph")
+                else: # only add/delete edge
+                    if add_or_delete <= 0.5:
+                        print("addition")
+                        flag = self.add_edge(self.graph, start_action.item(), tail_action.item())
+                    else:
+                        print("deletion")
+                        flag= self.delete_edge(self.graph, start_action.item(), tail_action.item())
+                        # check if nodes are isolated, if it is, delete it
+                        # if nx.is_isolate(self.graph, start_action.item()):
+                        #     self.delete_node(self.graph, start_action.item())
+                        # if nx.is_isolate(self.graph, tail_action.item()):
+                        #     self.delete_node(self.graph, tail_action.item())
 
                 if flag:
                     validity = self.check_validity(self.graph)
@@ -159,19 +171,21 @@ class gnn_explain():
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_(self.policyNets.parameters(), 100)
                 self.optimizer.step()
-        #self.graph_draw(self.graph)
-        #plt.show()
+        self.graph_draw(self.graph)
+        plt.show()
+        plt.savefig("Graph.png", format="PNG")
+        plt.clf()
         X_new, A_new = self.read_from_graph_raw(self.graph)
         X_new = torch.from_numpy(X_new)
         A_new = torch.from_numpy(A_new)
         logits, probs = self.gnnNets(X_new.float(), A_new.float())
         prob = probs[self.target_class].item()
 
-        iter_count = 0
-        if os.path.exists('{0}/test_idx_{1}_iter_{2}.npz'.format(save_folder, test_idx, iter_count)):
-            files = os.listdir('{0}'.format(save_folder))
-            files.sort()
-            iter_count = int(files[-1].split('_')[-1].split('.')[0]) + 1
+        # iter_count = 0
+        # if os.path.exists('{0}/test_idx_{1}_iter_{2}.npz'.format(save_folder, test_idx, iter_count)):
+        #     files = os.listdir('{0}'.format(save_folder))
+        #     files.sort()
+        #     iter_count = int(files[-1].split('_')[-1].split('.')[0]) + 1
         np.savez('{0}/test_idx_{1}_iter_{2}.npz'.format(save_folder, test_idx, iter_count), \
                  X_new.numpy(), A_new.numpy(), probs.detach().numpy(), self.target_class)
 
@@ -242,11 +256,24 @@ class gnn_explain():
         graph.add_node(idx, label=node_type)
         return
 
+    def delete_node(self, graph, idx):
+        graph.remove_node(idx)
+        return
+
     def add_edge(self, graph, start_id, tail_id):
         if graph.has_edge(start_id, tail_id) or start_id == tail_id:
             return False
         else:
             graph.add_edge(start_id, tail_id)
+            return True
+
+    def delete_edge(self, graph, start_id, tail_id):
+        if start_id == tail_id:
+            return False
+        elif graph.has_edge(start_id, tail_id) is False:
+            return False
+        else:
+            graph.remove_edge(start_id, tail_id)
             return True
 
     def read_from_graph(self, graph):  # read graph with added candidates nodes
