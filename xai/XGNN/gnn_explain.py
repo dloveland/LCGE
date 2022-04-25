@@ -13,9 +13,9 @@ from training.gnns import DisNets
 from xai.continuous_XGNN.utils import progress_bar
 from ..XGNN.policy_nn import PolicyNN
 from training.gnns import DisNets
-# import matplotlib
-# matplotlib.use('agg')
-# import matplotlib.pyplot as plt
+import matplotlib
+matplotlib.use('agg')
+import matplotlib.pyplot as plt
 import sys
 from datasets.get_loader import get_loader
 from torch_geometric.data import Data
@@ -98,8 +98,6 @@ class gnn_explain():
                 # Feed to the policy nets for actions
                 add_or_delete, start_action, start_logits_ori, tail_action, tail_logits_ori = self.policyNets(X.float(), A.float(),
                                                                                             n + self.node_type)
-
-                print(add_or_delete)
                 # flag is used to track whether adding/deleting operation is success/valid.
                 if tail_action >= n:  # we need to add node, then add edge
                     if n == self.max_node:
@@ -149,7 +147,7 @@ class gnn_explain():
                         reward_avg = torch.mean(torch.stack(reward_rollout))
                         # desgin loss (need to tune the hyper-parameters here)
                         total_reward = reward_step + reward_pred + reward_avg * self.roll_out_alpha
-
+                        print(total_reward)
                         if total_reward < 0:
                             self.graph = copy.deepcopy(self.graph_old)  # rollback
                         #  total_reward= reward_step+reward_pred
@@ -172,10 +170,10 @@ class gnn_explain():
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_(self.policyNets.parameters(), 100)
                 self.optimizer.step()
-        # self.graph_draw(self.graph)
-        # plt.show()
-        # plt.savefig("Graph.png", format="PNG")
-        # plt.clf()
+            # self.graph_draw(self.graph)
+            # plt.show()
+            # plt.savefig("Graph.png", format="PNG")
+            # plt.clf()
         X_new, A_new = self.read_from_graph_raw(self.graph)
         X_new = torch.from_numpy(X_new)
         A_new = torch.from_numpy(A_new)
@@ -224,16 +222,26 @@ class gnn_explain():
             n = cur_graph.number_of_nodes()
             X = torch.from_numpy(X)
             A = torch.from_numpy(A)
-            start_action, start_logits_ori, tail_action, tail_logits_ori = self.policyNets(X.float(), A.float(),
-                                                                                           n + self.node_type)
-            if tail_action >= n:  # we need add node, then add edge
+            add_or_delete, start_action, start_logits_ori, tail_action, tail_logits_ori = self.policyNets(X.float(), A.float(),
+                                                                                                n + self.node_type)
+            # flag is used to track whether adding/deleting operation is success/valid.
+            if tail_action >= n:  # we need to add node, then add edge
                 if n == self.max_node:
                     flag = False
+                elif add_or_delete <= 0.5: # add node & edge
+                    print("addition")
+                    self.add_node(self.graph, n, tail_action.item() - n)
+                    flag = self.add_edge(self.graph, start_action.item(), n)                        
+                else: #  for deleteion, you always need to start from an existing node
+                    flag = False
+                    print("Both the start and tail node of deletion should exist in the orig graph")
+            else: # only add/delete edge
+                if add_or_delete <= 0.5:
+                    print("addition")
+                    flag = self.add_edge(self.graph, start_action.item(), tail_action.item())
                 else:
-                    self.add_node(cur_graph, n, tail_action.item() - n)
-                    flag = self.add_edge(cur_graph, start_action.item(), n)
-            else:
-                flag = self.add_edge(cur_graph, start_action.item(), tail_action.item())
+                    print("deletion")
+                    flag= self.delete_edge(self.graph, start_action.item(), tail_action.item())
 
             # if the graph is not valid in rollout, two possible solutions
             # 1. return a negative reward as overall reward for this rollout  --- what we do here.

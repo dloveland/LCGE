@@ -57,7 +57,6 @@ class PolicyNN(nn.Module):
 
         # starting from here are the layers added for adding deletion
         self.add_delete_mlp_1 = nn.Linear(1, 1) # > 0.5 delete, <0.5 add
-        # self.add_delete_mlp_2 = nn.Linear(10, 1)
         self.delete_start_mlp1 = nn.Linear(self.dense_dim, self.start_mlp_hidden)
         self.delete_start_mlp_non_linear = nn.ReLU6()
         self.delete_start_mlp2= nn.Linear(self.start_mlp_hidden, 1)
