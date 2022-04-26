@@ -54,13 +54,15 @@ class gnn_explain():
         self.gnnNets.load_state_dict(checkpoint['net'])
  
         print(self.cfg.model_file)
+        # base_file = "local_explanations"
         base_file = self.cfg.model_file.split('.')[0]
         print(base_file)
         if not os.path.exists('xai_results/{0}'.format(base_file)):
             os.makedirs('xai_results/{0}'.format(base_file))
 
         param_str = 'max_node_{0}_max_step_{1}_max_iters_{2}'.format(self.max_node, self.max_step, self.max_iters)
-        save_folder = 'xai_results/{0}/{1}'.format(base_file, param_str)
+        # save_folder = 'xai_results/{0}/{1}'.format(base_file, param_str)
+        save_folder = 'xai_results/{0}/{1}'.format(base_file, "local_explanations_plus_deletion")
         if not os.path.exists(save_folder):
             os.makedirs(save_folder)
  

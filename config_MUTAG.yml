@@ -20,8 +20,8 @@ gnn_weight_decay: 5e-4
 model_file: original_XGNN_MUTAG_ckpt.pth
 
 # GNN_explain
-max_nodes: 5
-max_steps: 20
+max_nodes: 20
+max_steps: 50
 max_iters: 5
 num_classes: 2
 node_types: 7
