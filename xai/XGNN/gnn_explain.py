@@ -155,7 +155,6 @@ class gnn_explain():
                             raise ValueError
                         # desgin loss (need to tune the hyper-parameters here)
                         total_reward = reward_step + reward_pred + reward_avg * self.roll_out_alpha
-                        print(total_reward)
                         if total_reward < 0:
                             self.graph = copy.deepcopy(self.graph_old)  # rollback
                         #  total_reward= reward_step+reward_pred
