@@ -23,7 +23,8 @@ def main():
     # explain GNN
     start_from = cfg.start_from
     if start_from == "existing":
-        test_idxs = cfg.test_idx
+        # test_idxs = cfg.test_idx
+        test_idxs = [1, 2, 3, 4, 5]
         for test_idx in test_idxs:
             gnn_explainer = gnn_explain(cfg)
             gnn_explainer.train(cfg.model_checkpoints_dir, cfg.model_file, test_idx)

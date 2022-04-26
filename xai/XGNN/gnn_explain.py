@@ -14,6 +14,7 @@ from xai.continuous_XGNN.utils import progress_bar
 from ..XGNN.policy_nn import PolicyNN
 from training.gnns import DisNets
 import matplotlib
+
 matplotlib.use('agg')
 import matplotlib.pyplot as plt
 import sys
@@ -49,10 +50,10 @@ class gnn_explain():
 
     def train(self, model_checkpoints_dir, model_file, test_idx=0, iter_count=0):
         print('Training gnn_explain Started...')
-        # given the well-trained model, Load the model
-        checkpoint = torch.load(os.path.join(model_checkpoints_dir, model_file))
-        self.gnnNets.load_state_dict(checkpoint['net'])
- 
+        # # given the well-trained model, Load the model
+        # checkpoint = torch.load(os.path.join(model_checkpoints_dir, model_file))
+        # self.gnnNets.load_state_dict(checkpoint['net'])
+        #
         print(self.cfg.model_file)
         # base_file = "local_explanations"
         base_file = self.cfg.model_file.split('.')[0]
@@ -65,12 +66,12 @@ class gnn_explain():
         save_folder = 'xai_results/{0}/{1}'.format(base_file, "local_explanations_plus_deletion")
         if not os.path.exists(save_folder):
             os.makedirs(save_folder)
- 
+
         # Get test data loader to use for explanations
         test_data_loader = get_loader(self.cfg.dataset, mode=2, shuffle=False, batch_size=1)
         test_data = []
-        #TODO fix this, shouldnt need to unpack dataloader for one datapoint
-        for d in test_data_loader: 
+        # TODO fix this, shouldnt need to unpack dataloader for one datapoint
+        for d in test_data_loader:
             # Just use one for now and handle mutiple explanations in main?
             test_data.append(d)
         test_graph = test_data[test_idx]
@@ -98,26 +99,27 @@ class gnn_explain():
                 A = torch.from_numpy(A)
 
                 # Feed to the policy nets for actions
-                add_or_delete, start_action, start_logits_ori, tail_action, tail_logits_ori = self.policyNets(X.float(), A.float(),
-                                                                                            n + self.node_type)
+                add_or_delete, start_action, start_logits_ori, tail_action, tail_logits_ori = self.policyNets(X.float(),
+                                                                                                              A.float(),
+                                                                                                              n + self.node_type)
                 # flag is used to track whether adding/deleting operation is success/valid.
                 if tail_action >= n:  # we need to add node, then add edge
                     if n == self.max_node:
                         flag = False
-                    elif add_or_delete <= 0.5: # add node & edge
+                    elif add_or_delete <= 0.5:  # add node & edge
                         print("addition")
                         self.add_node(self.graph, n, tail_action.item() - n)
-                        flag = self.add_edge(self.graph, start_action.item(), n)                        
-                    else: #  for deleteion, you always need to start from an existing node
+                        flag = self.add_edge(self.graph, start_action.item(), n)
+                    else:  # for deleteion, you always need to start from an existing node
                         flag = False
                         print("Both the start and tail node of deletion should exist in the orig graph")
-                else: # only add/delete edge
+                else:  # only add/delete edge
                     if add_or_delete <= 0.5:
                         print("addition")
                         flag = self.add_edge(self.graph, start_action.item(), tail_action.item())
                     else:
                         print("deletion")
-                        flag= self.delete_edge(self.graph, start_action.item(), tail_action.item())
+                        flag = self.delete_edge(self.graph, start_action.item(), tail_action.item())
                         # check if nodes are isolated, if it is, delete it
                         # if nx.is_isolate(self.graph, start_action.item()):
                         #     self.delete_node(self.graph, start_action.item())
@@ -133,7 +135,7 @@ class gnn_explain():
                         X_new = torch.from_numpy(X_new)
                         A_new = torch.from_numpy(A_new)
                         logits, probs = self.gnnNets(X_new.float(), A_new.float())
-            
+
                         # based on logits, define the reward
                         _, prediction = torch.max(logits, 0)
                         if self.target_class == prediction:  # positive reward
@@ -143,10 +145,14 @@ class gnn_explain():
 
                         # Then we need to roll out.
                         reward_rollout = []
-                        for roll in range(10):
-                            reward_cur = self.roll_out(self.graph, j)
-                            reward_rollout.append(reward_cur)
-                        reward_avg = torch.mean(torch.stack(reward_rollout))
+                        try:
+                            for roll in range(10):
+                                reward_cur = self.roll_out(self.graph, j)
+                                reward_rollout.append(reward_cur)
+                            reward_avg = torch.mean(torch.stack(reward_rollout))
+                        except:
+                            print("error: ", reward_rollout)
+                            raise ValueError
                         # desgin loss (need to tune the hyper-parameters here)
                         total_reward = reward_step + reward_pred + reward_avg * self.roll_out_alpha
                         print(total_reward)
@@ -154,12 +160,12 @@ class gnn_explain():
                             self.graph = copy.deepcopy(self.graph_old)  # rollback
                         #  total_reward= reward_step+reward_pred
                         loss = total_reward * (self.criterion(start_logits_ori[None, :], start_action.expand(1))
-                                            + self.criterion(tail_logits_ori[None, :], tail_action.expand(1)))
+                                               + self.criterion(tail_logits_ori[None, :], tail_action.expand(1)))
                     else:
                         total_reward = -1  # graph is not valid
                         self.graph = copy.deepcopy(self.graph_old)
                         loss = total_reward * (self.criterion(start_logits_ori[None, :], start_action.expand(1))
-                                            + self.criterion(tail_logits_ori[None, :], tail_action.expand(1)))
+                                               + self.criterion(tail_logits_ori[None, :], tail_action.expand(1)))
                 else:
                     # in case adding edge was not successful
                     # do not evaluate
@@ -168,7 +174,7 @@ class gnn_explain():
                     # print(start_logits_ori)
                     # print(tail_logits_ori)
                     loss = total_reward * (self.criterion(start_logits_ori[None, :], start_action.expand(1)) +
-                                        self.criterion(tail_logits_ori[None, :], tail_action.expand(1)))
+                                           self.criterion(tail_logits_ori[None, :], tail_action.expand(1)))
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_(self.policyNets.parameters(), 100)
                 self.optimizer.step()
@@ -183,10 +189,10 @@ class gnn_explain():
         prob = probs[self.target_class].item()
 
         # iter_count = 0
-        # if os.path.exists('{0}/test_idx_{1}_iter_{2}.npz'.format(save_folder, test_idx, iter_count)):
-        #     files = os.listdir('{0}'.format(save_folder))
-        #     files.sort()
-        #     iter_count = int(files[-1].split('_')[-1].split('.')[0]) + 1
+        if os.path.exists('{0}/test_idx_{1}_iter_{2}.npz'.format(save_folder, test_idx, iter_count)):
+            files = os.listdir('{0}'.format(save_folder))
+            files.sort()
+            iter_count = int(files[-1].split('_')[-1].split('.')[0]) + 1
         np.savez('{0}/test_idx_{1}_iter_{2}.npz'.format(save_folder, test_idx, iter_count), \
                  X_new.numpy(), A_new.numpy(), probs.detach().numpy(), self.target_class)
 
@@ -224,33 +230,34 @@ class gnn_explain():
             n = cur_graph.number_of_nodes()
             X = torch.from_numpy(X)
             A = torch.from_numpy(A)
-            add_or_delete, start_action, start_logits_ori, tail_action, tail_logits_ori = self.policyNets(X.float(), A.float(),
-                                                                                                n + self.node_type)
+            add_or_delete, start_action, start_logits_ori, tail_action, tail_logits_ori = self.policyNets(X.float(),
+                                                                                                          A.float(),
+                                                                                                          n + self.node_type)
             # flag is used to track whether adding/deleting operation is success/valid.
             if tail_action >= n:  # we need to add node, then add edge
                 if n == self.max_node:
                     flag = False
-                elif add_or_delete <= 0.5: # add node & edge
+                elif add_or_delete <= 0.5:  # add node & edge
                     print("addition")
                     self.add_node(self.graph, n, tail_action.item() - n)
-                    flag = self.add_edge(self.graph, start_action.item(), n)                        
-                else: #  for deleteion, you always need to start from an existing node
+                    flag = self.add_edge(self.graph, start_action.item(), n)
+                else:  # for deleteion, you always need to start from an existing node
                     flag = False
                     print("Both the start and tail node of deletion should exist in the orig graph")
-            else: # only add/delete edge
+            else:  # only add/delete edge
                 if add_or_delete <= 0.5:
                     print("addition")
                     flag = self.add_edge(self.graph, start_action.item(), tail_action.item())
                 else:
                     print("deletion")
-                    flag= self.delete_edge(self.graph, start_action.item(), tail_action.item())
+                    flag = self.delete_edge(self.graph, start_action.item(), tail_action.item())
 
             # if the graph is not valid in rollout, two possible solutions
             # 1. return a negative reward as overall reward for this rollout  --- what we do here.
             # 2. compute the loss but do not update model parameters here--- update with the step loss togehter.
-            if flag == True:
+            if flag:
                 validity = self.check_validity(cur_graph)
-                if validity == False:
+                if not validity:
                     return torch.tensor(self.roll_out_penalty)
             else:  # case 1: add edges but already exists, case2: keep add node when reach max_node
                 return torch.tensor(self.roll_out_penalty)
@@ -261,7 +268,8 @@ class gnn_explain():
         A_new = torch.from_numpy(A_new)
         logits, probs = self.gnnNets(X_new.float(), A_new.float())
         reward = probs[self.target_class] - 0.5
-        return reward
+        # return reward
+        return torch.squeeze(reward)
 
     def add_node(self, graph, idx, node_type):
         graph.add_node(idx, label=node_type)
@@ -310,11 +318,11 @@ class gnn_explain():
         attr = nx.get_node_attributes(graph, "label")
         attr = list(attr.values())
         nb_clss = self.node_type
-        targets=np.array(attr).reshape(-1).astype(int)
+        targets = np.array(attr).reshape(-1).astype(int)
         one_hot_feature = np.eye(nb_clss)[targets]
 
         E = np.zeros([n, n])
-        E[:n,:n] = np.asarray(nx.to_numpy_matrix(graph))
+        E[:n, :n] = np.asarray(nx.to_numpy_matrix(graph))
 
         return one_hot_feature, E
 
@@ -330,7 +338,6 @@ class gnn_explain():
             self.graph.add_edge(edge_index[0][e], edge_index[1][e])
         self.step = 0
         return
-        
 
     def graph_reset(self):
         self.graph.clear()
